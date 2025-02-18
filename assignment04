@@ -1,0 +1,53 @@
+#There are 3 stages A, B and C. stage B should be executed only if stage A is success and run stage C only if stage A is Failure.
+
+pipeline {
+    agent any
+	
+    tools {
+        maven "maven"
+    }
+
+    environment {
+        GIT_REPO = 'https://github.com/shanvid22/maven-web-application.git'
+        BRANCH = 'main'
+        BUILD_TOOL = 'mvn'
+        TOMCAT_PATH = '/opt/tomcat/webapps'
+    }
+
+    stages {
+        // Stage A: Checkout
+        stage('Checkout') {
+            steps {
+                echo 'Executing Stage A: Checkout'
+                git branch: "${BRANCH}", url: "${GIT_REPO}"
+            }
+        }
+
+        // Stage B: Build (runs only if Stage A succeeds)
+        stage('Build') {
+            when {
+                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
+            steps {
+                echo 'Executing Stage B: Build'
+                sh "${BUILD_TOOL} clean package"
+            }
+        }
+    }
+
+    post {
+        // Stage C: Deploy (runs only if Stage A fails)
+        failure {
+            echo 'Executing Stage C: Deploy (because Stage A failed)'
+            script {
+                sh "pwd"
+                sh "cp -r $WORKSPACE/target/*.war ${TOMCAT_PATH}/"
+            }
+        }
+
+        // Optional: Success message
+        success {
+            echo 'Pipeline succeeded!'
+        }
+    }
+}
