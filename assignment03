@@ -1,0 +1,79 @@
+#Run a particular stage based on the parameter passed as stage name ?
+
+pipeline {
+    agent any
+	
+    tools {
+        maven "maven"
+    }
+
+    parameters {
+        string(name: 'STAGE_TO_RUN', defaultValue: '', description: 'Specify a stage to run (e.g., Build, Unit Test, Integration Test, Deploy). Leave blank to run all stages.')
+    }
+
+    environment {
+        GIT_REPO = 'https://github.com/shanvid22/boxfuse-sample-java-war-hello.git'
+        BRANCH = 'master'
+        BUILD_TOOL = 'mvn'
+        TOMCAT_PATH = '/opt/tomcat/webapps'
+    }
+
+    stages {
+        stage('Checkout') {
+            when {
+                expression { params.STAGE_TO_RUN == '' || params.STAGE_TO_RUN == 'Checkout' }
+            }
+            steps {
+                git branch: "${BRANCH}", url: "${GIT_REPO}"
+            }
+        }
+
+        stage('Build') {
+            when {
+                expression { params.STAGE_TO_RUN == '' || params.STAGE_TO_RUN == 'Build' }
+            }
+            steps {
+                sh "${BUILD_TOOL} clean package"
+            }
+        }
+
+        stage('Unit Test') {
+            when {
+                expression { (params.STAGE_TO_RUN == '' || params.STAGE_TO_RUN == 'Unit Test') && env.BRANCH == 'master' }
+            }
+            steps {
+                sh "${BUILD_TOOL} test"
+            }
+        }
+
+        stage('Integration Test') {
+            when {
+                expression { (params.STAGE_TO_RUN == '' || params.STAGE_TO_RUN == 'Integration Test') && env.BRANCH == 'master' }
+            }
+            steps {
+                sh "echo Running integration tests..."
+                // Add actual integration test command if available
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                expression { params.STAGE_TO_RUN == '' || params.STAGE_TO_RUN == 'Deploy' }
+            }
+            steps {
+                script {
+                    sh "cp -r $WORKSPACE/target/*.war ${TOMCAT_PATH}/"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Deployment Successful!'
+        }
+        failure {
+            echo 'Deployment Failed!'
+        }
+    }
+}
