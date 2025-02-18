@@ -1,0 +1,66 @@
+#Run 2 test stages only if the branch is master ?
+
+pipeline {
+    agent any
+	
+    tools {
+        maven "maven"
+    }
+
+    environment {
+        GIT_REPO = 'https://github.com/shanvid22/maven-web-application.git'
+        BRANCH = 'main'
+        BUILD_TOOL = 'mvn'
+        TOMCAT_PATH = '/opt/tomcat/webapps'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: "${BRANCH}", url: "${GIT_REPO}"
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh "${BUILD_TOOL} clean package"
+            }
+        }
+
+        stage('Unit Test') {
+            when {
+                expression { env.BRANCH == 'master' }
+            }
+            steps {
+                sh "${BUILD_TOOL} test"
+            }
+        }
+
+        stage('Integration Test') {
+            when {
+                expression { env.BRANCH == 'master' }
+            }
+            steps {
+                sh "echo Running integration tests..."
+                // Add actual integration test command if available
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    sh "cp -r $WORKSPACE/target/*.war ${TOMCAT_PATH}/"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Deployment Successful!'
+        }
+        failure {
+            echo 'Deployment Failed!'
+        }
+    }
+}
